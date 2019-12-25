@@ -32,7 +32,7 @@ def accumulate(model1, model2, decay=0.999):
 
 def sample_data(dataset, batch_size, image_size=4):
     dataset.resolution = image_size
-    loader = DataLoader(dataset, shuffle=True, batch_size=batch_size, num_workers=16)
+    loader = DataLoader(dataset, shuffle=True, batch_size=batch_size, num_workers=1)
 
     return loader
 
@@ -142,7 +142,8 @@ def train(args, dataset, generator, discriminator):
             ).mean()
             grad_penalty = 10 / 2 * grad_penalty
             grad_penalty.backward()
-            grad_loss_val = grad_penalty.item()
+            if i%10 == 0:
+                grad_loss_val = grad_penalty.item()
 
         if args.mixing and random.random() < 0.9:
             gen_in11, gen_in12, gen_in21, gen_in22 = torch.randn(
@@ -177,13 +178,15 @@ def train(args, dataset, generator, discriminator):
             ).mean()
             grad_penalty = 10 * grad_penalty
             grad_penalty.backward()
-            grad_loss_val = grad_penalty.item()
-            disc_loss_val = (real_predict - fake_predict).item()
+            if i%10 == 0:
+                grad_loss_val = grad_penalty.item()
+                disc_loss_val = (-real_predict + fake_predict).item()
 
         elif args.loss == 'r1':
             fake_predict = F.softplus(fake_predict).mean()
             fake_predict.backward()
-            disc_loss_val = (real_predict + fake_predict).item()
+            if i%10 == 0:
+                disc_loss_val = (real_predict + fake_predict).item()
 
         d_optimizer.step()
 
@@ -203,7 +206,8 @@ def train(args, dataset, generator, discriminator):
             elif args.loss == 'r1':
                 loss = F.softplus(-predict).mean()
 
-            gen_loss_val = loss.item()
+            if i%10 == 0:
+                gen_loss_val = loss.item()
 
             loss.backward()
             g_optimizer.step()
@@ -291,8 +295,6 @@ if __name__ == '__main__':
     ).cuda()
     g_running = StyledGenerator(code_size).cuda()
     g_running.train(False)
-
-    class_loss = nn.CrossEntropyLoss()
 
     g_optimizer = optim.Adam(
         generator.module.generator.parameters(), lr=args.lr, betas=(0.0, 0.99)
